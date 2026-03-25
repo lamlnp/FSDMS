@@ -69,45 +69,78 @@ class _SharedCapture:
 
     # Number of consecutive read failures before reporting error
     _FAIL_THRESHOLD = 50  # ~2.5 seconds at 50ms sleep
+    # RTSP reconnect settings
+    _MAX_RECONNECT_ATTEMPTS = 3
+    _RECONNECT_BACKOFF_BASE = 2  # seconds — 2, 4, 8
 
     def __init__(self, source, on_error=None) -> None:
         self.source = source
         self._on_error = on_error  # callback(error_msg: str)
-        # Use DirectShow backend on Windows for reliable webcam access
-        if isinstance(source, int):
-            self.capture = cv2.VideoCapture(source, cv2.CAP_DSHOW)
-        else:
-            self.capture = cv2.VideoCapture(source)
+        self._is_rtsp = isinstance(source, str) and source.startswith("rtsp")
+        self.capture = self._open_capture()
         logger.info("VideoCapture opened (source=%s, isOpened=%s)", source, self.capture.isOpened())
-        if isinstance(source, str) and source.startswith("rtsp"):
-            self.capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         self.ref_count = 0
         self.lock = threading.Lock()
         self.latest_frame: np.ndarray | None = None
         self.running = False
         self.thread: threading.Thread | None = None
 
+    def _open_capture(self) -> cv2.VideoCapture:
+        """Open a VideoCapture with the appropriate backend."""
+        if isinstance(self.source, int):
+            # DirectShow on Windows for reliable webcam access
+            cap = cv2.VideoCapture(self.source, cv2.CAP_DSHOW)
+        else:
+            # FFMPEG backend for RTSP / file sources
+            cap = cv2.VideoCapture(self.source, cv2.CAP_FFMPEG)
+            if self._is_rtsp:
+                cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        return cap
+
     def start(self) -> None:
         if self.running:
             return
         if not self.capture.isOpened():
-            if isinstance(self.source, int):
-                self.capture = cv2.VideoCapture(self.source, cv2.CAP_DSHOW)
-            else:
-                self.capture = cv2.VideoCapture(self.source)
+            self.capture = self._open_capture()
             logger.info("VideoCapture re-opened (source=%s, isOpened=%s)", self.source, self.capture.isOpened())
         self.running = True
         self.thread = threading.Thread(target=self._read_loop, daemon=True)
         self.thread.start()
 
+    def _try_reconnect(self) -> bool:
+        """Attempt to reconnect to the source. Returns True on success."""
+        for attempt in range(1, self._MAX_RECONNECT_ATTEMPTS + 1):
+            backoff = self._RECONNECT_BACKOFF_BASE ** attempt
+            logger.warning(
+                "Reconnect attempt %d/%d for source=%s in %ds",
+                attempt, self._MAX_RECONNECT_ATTEMPTS, self.source, backoff,
+            )
+            time.sleep(backoff)
+            if not self.running:
+                return False
+            try:
+                if self.capture.isOpened():
+                    self.capture.release()
+                self.capture = self._open_capture()
+                if self.capture.isOpened():
+                    ret, _ = self.capture.read()
+                    if ret:
+                        logger.info("Reconnected to source=%s on attempt %d", self.source, attempt)
+                        return True
+            except Exception as e:
+                logger.warning("Reconnect attempt %d failed: %s", attempt, e)
+        return False
+
     def _read_loop(self) -> None:
         """Continuously read frames so the buffer stays fresh."""
         # Discard first few frames — webcams on Windows often return
         # garbage/uninitialized buffers before auto-exposure stabilises.
-        for _ in range(10):
-            if not self.running:
-                return
-            self.capture.read()
+        # RTSP streams don't need this warmup.
+        if not self._is_rtsp:
+            for _ in range(10):
+                if not self.running:
+                    return
+                self.capture.read()
 
         consecutive_failures = 0
         error_reported = False
@@ -131,6 +164,19 @@ class _SharedCapture:
                     logger.error(msg)
                     if self._on_error:
                         self._on_error(msg)
+
+                    # RTSP: attempt auto-reconnect
+                    if self._is_rtsp:
+                        if self._try_reconnect():
+                            consecutive_failures = 0
+                            error_reported = False
+                            if self._on_error:
+                                self._on_error(None)  # clear error
+                            continue
+                        else:
+                            logger.error("All reconnect attempts failed for source=%s, stopping", self.source)
+                            break
+
                 time.sleep(0.05)
 
     def get_frame(self) -> np.ndarray | None:

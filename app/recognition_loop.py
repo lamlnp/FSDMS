@@ -9,6 +9,7 @@ import asyncio
 import logging
 import time
 
+import cv2
 import httpx
 import numpy as np
 
@@ -47,6 +48,13 @@ async def _recognition_worker(camera_id: str) -> None:
             if frame is None:
                 await asyncio.sleep(0.1)
                 continue
+
+            # Downscale large frames (e.g. 3MP IP cameras) for faster processing
+            h, w = frame.shape[:2]
+            MAX_WIDTH = 960
+            if w > MAX_WIDTH:
+                scale = MAX_WIDTH / w
+                frame = cv2.resize(frame, (MAX_WIDTH, int(h * scale)))
 
             # Run face detection + embedding (CPU-bound, run in thread)
             detections = await asyncio.to_thread(
