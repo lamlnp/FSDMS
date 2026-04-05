@@ -9,6 +9,7 @@ Migration from webcam to RTSP requires only a config change — no code changes.
 """
 
 import logging
+import os
 import threading
 import time
 from dataclasses import dataclass, field
@@ -91,10 +92,20 @@ class _SharedCapture:
             # DirectShow on Windows for reliable webcam access
             cap = cv2.VideoCapture(self.source, cv2.CAP_DSHOW)
         else:
+            if self._is_rtsp:
+                # Prefer TCP transport for RTSP streams to reduce packet loss
+                # and stalls on unstable Wi-Fi / LAN segments.
+                os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp")
             # FFMPEG backend for RTSP / file sources
             cap = cv2.VideoCapture(self.source, cv2.CAP_FFMPEG)
             if self._is_rtsp:
                 cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                open_timeout = getattr(cv2, "CAP_PROP_OPEN_TIMEOUT_MSEC", None)
+                read_timeout = getattr(cv2, "CAP_PROP_READ_TIMEOUT_MSEC", None)
+                if open_timeout is not None:
+                    cap.set(open_timeout, 5000)
+                if read_timeout is not None:
+                    cap.set(read_timeout, 5000)
         return cap
 
     def start(self) -> None:
