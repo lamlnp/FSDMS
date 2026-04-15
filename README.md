@@ -76,7 +76,9 @@ FaceService/
 │   ├── recognition_loop.py
 │   └── utils.py
 ├── .env.example
+├── .env.remote.example
 ├── requirements.txt
+├── start.ps1
 └── README.md
 ```
 
@@ -210,7 +212,7 @@ If startup is successful, `/health` should return `model_loaded: true`.
 
 ## Environment Setup
 
-FaceService reads configuration from a local `.env` file.
+FaceService reads configuration from a local `.env` file by default, and can also load an alternate profile such as `.env.remote`.
 
 Use `.env.example` as the base template.
 
@@ -219,6 +221,33 @@ Copy-Item .env.example .env
 ```
 
 Then edit the values to match your environment.
+
+### Switching Between Local And Remote Profiles
+
+Use the default `.env` for local laptop testing and `.env.remote` for a remote server.
+
+The minimal workflow is:
+
+1. Keep your local settings in `FaceService/.env`.
+2. Create `FaceService/.env.remote` from `FaceService/.env.remote.example` and set the deployed `BEDMS_CALLBACK_URL`.
+3. Start the service with `FaceService/start.ps1`:
+
+```powershell
+# Local laptop profile
+.\start.ps1 -Profile local
+
+# Remote server profile
+.\start.ps1 -Profile remote -Reload:$false
+```
+
+What usually changes between profiles:
+
+- `BEDMS_CALLBACK_URL`
+- `GPU_DEVICE_ID` if the remote host is CPU-only or uses a different GPU
+- the remote `BEDMS` deployment still needs `FACE_SERVICE_URL` updated to the active FaceService URL
+
+`FACE_SERVICE_ENV_FILE` must be set in the shell or launcher before Python starts. It cannot live inside the
+same `.env` file that it is supposed to select.
 
 ## Environment Variables
 
@@ -232,6 +261,7 @@ Then edit the values to match your environment.
 | `GPU_DEVICE_ID` | No | `0` | GPU device index. Use `-1` for CPU-only mode |
 | `DET_SIZE` | No | `640` | Face detection input size. Larger values may improve detection but use more CPU or GPU |
 | `MIN_FACE_SIZE` | No | `50` | Minimum accepted face width and height in pixels |
+| `FACE_SERVICE_ENV_FILE` | No | empty | Optional alternate env file name, e.g. `.env.remote`, loaded from the `FaceService` root before the other variables |
 
 ## Configuration Notes
 

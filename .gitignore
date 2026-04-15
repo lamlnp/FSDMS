@@ -1,5 +1,6 @@
 venv/
 .env
+.env.remote
 __pycache__/
 *.pyc
 *.pyo
