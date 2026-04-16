@@ -1,0 +1,25 @@
+on_http_request:
+  - expressions:
+      - req.url.path != "/health"
+    actions:
+      - type: jwt-validation
+        config:
+          issuer:
+            allow_list:
+              - value: https://bedms-production.up.railway.app
+          audience:
+            allow_list:
+              - value: "faceservice"
+          http:
+            tokens:
+              - type: jwt
+                method: header
+                name: Authorization
+                prefix: "Bearer "
+          jws:
+            allowed_algorithms:
+              - RS256
+            keys:
+              sources:
+                additional_jkus:
+                  - https://bedms-production.up.railway.app/v1/internal-auth/jwks

@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
 
 from app.camera_manager import camera_manager
-from app.config import HOST, PORT
+from app.config import CORS_ALLOW_ORIGINS, HOST, PORT
 from app.face_engine import face_engine
 from app.recognition_loop import start_recognition, stop_recognition
 from app.utils import decode_image_bytes, encode_frame_base64
@@ -84,8 +84,8 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=CORS_ALLOW_ORIGINS,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

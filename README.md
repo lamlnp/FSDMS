@@ -76,7 +76,6 @@ FaceService/
 │   ├── recognition_loop.py
 │   └── utils.py
 ├── .env.example
-├── .env.remote.example
 ├── requirements.txt
 ├── start.ps1
 └── README.md
@@ -212,7 +211,7 @@ If startup is successful, `/health` should return `model_loaded: true`.
 
 ## Environment Setup
 
-FaceService reads configuration from a local `.env` file by default, and can also load an alternate profile such as `.env.remote`.
+FaceService reads configuration from a single local `.env` file.
 
 Use `.env.example` as the base template.
 
@@ -222,46 +221,19 @@ Copy-Item .env.example .env
 
 Then edit the values to match your environment.
 
-### Switching Between Local And Remote Profiles
-
-Use the default `.env` for local laptop testing and `.env.remote` for a remote server.
-
-The minimal workflow is:
-
-1. Keep your local settings in `FaceService/.env`.
-2. Create `FaceService/.env.remote` from `FaceService/.env.remote.example` and set the deployed `BEDMS_CALLBACK_URL`.
-3. Start the service with `FaceService/start.ps1`:
-
-```powershell
-# Local laptop profile
-.\start.ps1 -Profile local
-
-# Remote server profile
-.\start.ps1 -Profile remote -Reload:$false
-```
-
-What usually changes between profiles:
-
-- `BEDMS_CALLBACK_URL`
-- `GPU_DEVICE_ID` if the remote host is CPU-only or uses a different GPU
-- the remote `BEDMS` deployment still needs `FACE_SERVICE_URL` updated to the active FaceService URL
-
-`FACE_SERVICE_ENV_FILE` must be set in the shell or launcher before Python starts. It cannot live inside the
-same `.env` file that it is supposed to select.
-
 ## Environment Variables
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
 | `HOST` | No | `0.0.0.0` | Host address used by the FastAPI server |
 | `PORT` | No | `8000` | Port used by the FastAPI server |
-| `BEDMS_CALLBACK_URL` | Yes for camera callback flow | `http://localhost:3001/v1/face-recognition/callback` | Endpoint that FaceService posts recognition results to |
+| `CORS_ALLOW_ORIGINS` | No | `https://fedms.vercel.app` | Comma-separated browser origins that may call FaceService directly |
+| `BEDMS_CALLBACK_URL` | Yes for camera callback flow | `https://bedms-production.up.railway.app/v1/face-recognition/callback` | Endpoint that FaceService posts recognition results to |
 | `FACE_SERVICE_API_KEY` | Yes for callback authentication | empty | Shared API key sent in the `X-API-Key` header when posting to BEDMS |
 | `INSIGHTFACE_MODEL` | No | `buffalo_l` | InsightFace model package name |
 | `GPU_DEVICE_ID` | No | `0` | GPU device index. Use `-1` for CPU-only mode |
 | `DET_SIZE` | No | `640` | Face detection input size. Larger values may improve detection but use more CPU or GPU |
 | `MIN_FACE_SIZE` | No | `50` | Minimum accepted face width and height in pixels |
-| `FACE_SERVICE_ENV_FILE` | No | empty | Optional alternate env file name, e.g. `.env.remote`, loaded from the `FaceService` root before the other variables |
 
 ## Configuration Notes
 
@@ -278,13 +250,25 @@ The code in `FaceService/app/face_engine.py` selects providers based on this val
 
 This should point to the BEDMS callback endpoint that receives recognition events.
 
-If BEDMS is running locally, the default value is usually correct:
+For the deployed demo stack, use the Railway callback endpoint:
 
 ```text
-http://localhost:3001/v1/face-recognition/callback
+https://bedms-production.up.railway.app/v1/face-recognition/callback
 ```
 
-If BEDMS is running on another machine, update the host name or IP address.
+Update this only if the deployed BEDMS domain changes.
+
+### `CORS_ALLOW_ORIGINS`
+
+This controls which browser origins can call FaceService directly.
+
+Use exact origins only, not paths. For the deployed demo stack, use:
+
+```text
+https://fedms.vercel.app
+```
+
+If FEDMS moves to another deployed domain, replace this with that exact `https://...` origin.
 
 ### `FACE_SERVICE_API_KEY`
 
@@ -354,6 +338,14 @@ python -m app.main
 ```
 
 The `python -m app.main` path uses the `HOST` and `PORT` values from `.env`.
+
+### Option 3: Startup script
+
+```powershell
+.\start.ps1
+```
+
+This wrapper checks that `.env` exists and then starts Uvicorn with the same `HOST` and `PORT`.
 
 ## Health Check
 
