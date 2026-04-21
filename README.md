@@ -345,7 +345,7 @@ The `python -m app.main` path uses the `HOST` and `PORT` values from `.env`.
 .\start.ps1
 ```
 
-This wrapper checks that `.env` exists and then starts Uvicorn with the same `HOST` and `PORT`.
+This wrapper checks that `.env` exists, starts Uvicorn with the same `HOST` and `PORT`, and opens an ngrok tunnel using `ngrok.jwt-validation.yml`. It assumes `ngrok` is installed and authenticated; pass `-NoNgrok` if you only want the local server.
 
 ## Health Check
 
