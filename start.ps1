@@ -45,9 +45,11 @@ try {
             throw "Missing ngrok policy file at '$ngrokPolicyPath'."
         }
 
-        Write-Host "Starting ngrok tunnel with $([System.IO.Path]::GetFileName($ngrokPolicyPath))"
+        Write-Host "Starting ngrok tunnel with $([System.IO.Path]::GetFileName($ngrokPolicyPath)) in a new window..."
         $ngrokArgs = @('http', "$Port", '--traffic-policy-file', $ngrokPolicyPath)
-        $ngrokProcess = Start-Process -FilePath $ngrokCommand.Path -ArgumentList $ngrokArgs -WorkingDirectory $scriptDir -NoNewWindow -PassThru
+        
+        # Removed -NoNewWindow so ngrok spawns in its own terminal
+        $ngrokProcess = Start-Process -FilePath $ngrokCommand.Path -ArgumentList $ngrokArgs -WorkingDirectory $scriptDir -PassThru
         Start-Sleep -Seconds 1
 
         if ($ngrokProcess.HasExited) {
@@ -55,12 +57,14 @@ try {
         }
     }
 
-    Write-Host "Starting FaceService using .env"
+    Write-Host "Starting FaceService using .env in the main window..."
     & $python @uvicornArgs
     $exitCode = $LASTEXITCODE
 }
 finally {
+    # This will still properly clean up the second window when you close the main one
     if ($ngrokProcess -and -not $ngrokProcess.HasExited) {
+        Write-Host "Shutting down ngrok tunnel..."
         Stop-Process -Id $ngrokProcess.Id -Force
     }
 }
