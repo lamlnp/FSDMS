@@ -1,6 +1,6 @@
-# FaceService — Windows Setup From Scratch
+# FSDMS — Windows Setup From Scratch
 
-Step-by-step guide to get FaceService running on a clean Windows machine. Targets Windows 10 / 11 with PowerShell.
+Step-by-step guide to get FSDMS running on a clean Windows machine. Targets Windows 10 / 11 with PowerShell.
 
 For deeper reference (API endpoints, env vars, troubleshooting matrix), see [README.md](README.md).
 
@@ -42,13 +42,13 @@ Only needed if you want CUDA inference.
    nvidia-smi
    ```
 
-3. CUDA / cuDNN system install is **not required** — the `onnxruntime-gpu` wheel bundles the DLLs it needs, and FaceService registers them automatically on Windows from `venv\Lib\site-packages\nvidia`.
+3. CUDA / cuDNN system install is **not required** — the `onnxruntime-gpu` wheel bundles the DLLs it needs, and FSDMS registers them automatically on Windows from `venv\Lib\site-packages\nvidia`.
 
 If you do not have an NVIDIA GPU, skip this section and use CPU mode (covered below).
 
 ### 1.5 ngrok (optional — only for the demo / remote callback flow)
 
-Only needed if BEDMS (Railway) must reach your local FaceService.
+Only needed if BEDMS (Railway) must reach your local FSDMS.
 
 1. Install: <https://ngrok.com/download>
 2. Authenticate once with your token:
@@ -65,21 +65,21 @@ If the repo is already on disk, skip to step 3.
 
 ```powershell
 cd D:\
-git clone <repo-url> DMS
-cd DMS\FaceService
+git clone <repo-url> FSDMS
+cd FSDMS
 ```
 
 If you already have the repo:
 
 ```powershell
-cd D:\1Code\DMS\FaceService
+cd <path-to>\FSDMS
 ```
 
 ---
 
 ## 3. Create And Activate The Virtual Environment
 
-From inside `FaceService\`:
+From inside `FSDMS\`:
 
 ```powershell
 python -m venv venv
@@ -186,7 +186,7 @@ curl.exe http://localhost:8000/health
 Expected:
 
 ```json
-{"status":"ok","model_loaded":true,"service":"FaceService"}
+{"status":"ok","model_loaded":true,"service":"FSDMS"}
 ```
 
 Open the interactive docs in a browser:
@@ -199,7 +199,7 @@ If `model_loaded` is `false`, jump to [Troubleshooting](#troubleshooting).
 
 ## 8. (Optional) Run With ngrok For Remote Callbacks
 
-Used when BEDMS is on Railway and needs to call your local FaceService (or your local browser must hit FaceService through HTTPS).
+Used when BEDMS is on Railway and needs to call your local FSDMS (or your local browser must hit FSDMS through HTTPS).
 
 ```powershell
 .\start.ps1
@@ -217,13 +217,13 @@ To run **without** ngrok:
 .\start.ps1 -NoNgrok
 ```
 
-Copy the ngrok HTTPS URL printed in the ngrok window into BEDMS as the FaceService base URL.
+Copy the ngrok HTTPS URL printed in the ngrok window into BEDMS as the FSDMS base URL.
 
 ---
 
 ## 9. Smoke Test With A Real Image
 
-Place a photo with a clear face as `sample.jpg` in `FaceService\`.
+Place a photo with a clear face as `sample.jpg` in `FSDMS\`.
 
 ```powershell
 curl.exe -F "image=@sample.jpg" http://localhost:8000/detect
@@ -281,7 +281,7 @@ For more failure modes, see the **Troubleshooting** section in [README.md](READM
 ## Daily Use After Initial Setup
 
 ```powershell
-cd D:\1Code\DMS\FaceService
+cd <path-to>\FSDMS
 .\venv\Scripts\Activate.ps1
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
