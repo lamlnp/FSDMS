@@ -77,6 +77,31 @@ cd <path-to>\FSDMS
 
 ---
 
+## Fast Path: One-Shot Setup Script
+
+If you just want everything ready, run:
+
+```powershell
+.\setup.ps1
+```
+
+The script verifies Python, probes for an NVIDIA GPU, asks whether to use GPU or CPU mode, creates the venv, installs dependencies (swapping `onnxruntime-gpu` → `onnxruntime` automatically in CPU mode), and creates `.env` from the template with `GPU_DEVICE_ID` set correctly.
+
+Useful flags:
+
+```powershell
+.\setup.ps1 -Mode gpu        # skip the prompt, force GPU deps
+.\setup.ps1 -Mode cpu        # skip the prompt, force CPU deps
+.\setup.ps1 -SkipDeps        # reuse venv, only re-run .env patching
+.\setup.ps1 -Force            # delete and recreate venv
+```
+
+After it finishes, edit `.env` to set `FACE_SERVICE_API_KEY` (must match BEDMS), then jump to [step 6](#6-first-run).
+
+The manual steps below (3–5) are kept as a reference and as the fallback if the script fails.
+
+---
+
 ## 3. Create And Activate The Virtual Environment
 
 From inside `FSDMS\`:
